@@ -4,13 +4,14 @@ import { StepsList } from './components/StepsList';
 import { CodeEditor } from './components/CodeEditor';
 import { FileStructure, Step } from './types';
 import { Send } from 'lucide-react';
+import axios from 'axios';
 
 function App() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedContent, setSelectedContent] = useState('');
 
-  const mockSteps: Step[] = [
+  const [mockSteps, setMockSteps] = useState<Step[]>([
     {
       id: 1,
       title: 'Analyzing Requirements',
@@ -29,7 +30,7 @@ function App() {
       status: 'pending',
       description: 'Setting up required packages',
     },
-  ];
+  ]);
 
   const mockFileStructure: FileStructure[] = [
     {
@@ -56,9 +57,17 @@ function App() {
     },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
     setIsBuilding(true);
+
+    const prompts = await axios.get('http://127.0.0.1:3000/initial-prompts', {
+      params: {
+        prompt: query
+      }
+    })
+    console.log(prompts,'ghjk')
+
   };
 
   const handlePreview = () => {
