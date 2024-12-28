@@ -5,6 +5,7 @@ import { CodeEditor } from './components/CodeEditor';
 import { FileStructure, Step } from './types';
 import { Send } from 'lucide-react';
 import axios from 'axios';
+import { WebContainer } from '@webcontainer/api';
 
 function App() {
   const [isBuilding, setIsBuilding] = useState(false);
@@ -105,6 +106,8 @@ function App() {
 
     return buildStructure(filePaths);
   }
+  let webcontainerInstance: WebContainer;
+
 
   useEffect(() => {
     const steps: Step[] = [];
@@ -158,9 +161,53 @@ function App() {
     setQueryResponse(response.data);
   };
 
-  const handlePreview = () => {
-    // Handle preview logic
-    console.log('Preview clicked');
+  // useEffect(()=>{
+  //   async function run(){
+  //     webcontainerInstance = await WebContainer.boot();
+  //   }
+  //   run();
+  // }, [])
+
+  const handlePreview = async () => {
+
+    const files = {
+      'index.js': {
+        file: {
+          contents: `
+    import express from 'express';
+    const app = express();
+    const port = 3111;
+    
+    app.get('/', (req, res) => {
+      res.send('Welcome to a WebContainers app! 🥳');
+    });
+    
+    app.listen(port, () => {
+      console.log(\`App is live at http://localhost:\${port}\`);
+    });`,
+        },
+      },
+      'package.json': {
+        file: {
+          contents: `
+    {
+      "name": "example-app",
+      "type": "module",
+      "dependencies": {
+        "express": "latest",
+        "nodemon": "latest"
+      },
+      "scripts": {
+        "start": "nodemon --watch './' index.js"
+      }
+    }`,
+        },
+      },
+    };
+
+    webcontainerInstance = await WebContainer.boot();
+    await webcontainerInstance.mount(files);
+
   };
 
   if (!isBuilding) {
