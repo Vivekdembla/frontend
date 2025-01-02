@@ -6,7 +6,7 @@ export interface FileStructure {
 }
 
 export interface Step {
-  id: number;
+  id: string;
   title: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   description: string;
