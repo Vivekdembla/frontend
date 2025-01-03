@@ -7,8 +7,8 @@ interface FileExplorerProps {
   onFileSelect: (content: string) => void;
 }
 
-const FileExplorerItem = ({ item, onFileSelect, depth = 0 }: { 
-  item: FileStructure; 
+const FileExplorerItem = ({ item, onFileSelect, depth = 0 }: {
+  item: FileStructure;
   onFileSelect: (content: string) => void;
   depth?: number;
 }) => {
@@ -16,7 +16,7 @@ const FileExplorerItem = ({ item, onFileSelect, depth = 0 }: {
 
   return (
     <div className="text-gray-300">
-      <div 
+      <div
         className={`flex items-center py-1 px-2 hover:bg-gray-700 cursor-pointer`}
         style={{ paddingLeft: `${depth * 1.5}rem` }}
         onClick={() => {
@@ -37,13 +37,13 @@ const FileExplorerItem = ({ item, onFileSelect, depth = 0 }: {
         )}
         <span className="text-sm">{item.name}</span>
       </div>
-      
+
       {item.type === 'folder' && isOpen && item.children && (
         <div>
           {item.children.map((child, index) => (
-            <FileExplorerItem 
-              key={index} 
-              item={child} 
+            <FileExplorerItem
+              key={index}
+              item={child}
               onFileSelect={onFileSelect}
               depth={depth + 1}
             />

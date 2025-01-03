@@ -7,10 +7,16 @@ import { Send } from 'lucide-react';
 import axios from 'axios';
 import { WebContainer } from '@webcontainer/api';
 import output from './sample_output';
-import {v4 as uuid} from 'uuid';
+import { v4 as uuid } from 'uuid';
+import { Eye } from 'lucide-react';
+
+interface Prompts {
+  message: string;
+  role: string;
+}
 
 function App() {
-  const [isBuilding, setIsBuilding] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(true);
   const [queryResponse, setQueryResponse] = useState<string>("");
   const [query, setQuery] = useState('');
   const [selectedContent, setSelectedContent] = useState('');
@@ -20,6 +26,7 @@ function App() {
   const [webcontainerInstance, setContainer] = useState<WebContainer>();
   const [mockSteps, setMockSteps] = useState<Step[]>([]);
   const [mockFileStructure, setMockFileStructure] = useState<FileStructure[]>([]);
+  const [prompts, setPrompts] = useState<Prompts[]>([])
 
   function parseFileStructure(input: string): FileStructure[] {
     // Replace \n in the input string with actual newlines
@@ -73,7 +80,7 @@ function App() {
     fileStructure: FileStructure[]
   ): Record<string, any> => {
     const content: Record<string, any> = {};
-  
+
     const traverse = (items: FileStructure[]): Record<string, any> => {
       const result: Record<string, any> = {};
       items.forEach((item) => {
@@ -87,7 +94,7 @@ function App() {
       });
       return result;
     };
-  
+
     Object.assign(content, traverse(fileStructure));
     return content;
   };
@@ -109,7 +116,7 @@ function App() {
       } else if (type === "file" && filePath) {
         steps.push({
           id: uuid(),
-          title: `Create "${filePath}"`, 
+          title: `Create "${filePath}"`,
           status: "completed",
           description: "Creating the file...",
         })
@@ -117,13 +124,13 @@ function App() {
     }
     setMockSteps(steps);
   }
-  
+
   useEffect(() => {
-    
+
     setSteps();
     const fileStructure = parseFileStructure(queryResponse);
     const res = convertFileStructureToContent(fileStructure);
-    console.log(res,'structure of data sent to web server');
+    console.log(res, 'structure of data sent to web server');
     setContentToTransfer(res);
     setMockFileStructure(fileStructure);
 
@@ -133,24 +140,27 @@ function App() {
     e.preventDefault();
     setIsBuilding(true);
 
-    // const res = await axios.get('http://127.0.0.1:3000/initial-prompts', {
-    //   params: {
-    //     prompt: query
-    //   }
-    // })
-    // const promptsToSend: string[] = [...res.data.prompts, ...res.data.uiPrompts];
+    const res = await axios.get('http://127.0.0.1:3000/initial-prompts', {
+      params: {
+        prompt: query
+      }
+    })
+    const prompts: string[] = [...res.data.prompts, ...res.data.uiPrompts, query];
+    const promptsToSend: Prompts[] = prompts.map((prompt) => {
+      return { message: prompt, role: 'user' }
+    })
+    setPrompts(promptsToSend);
+    const response = await axios.get('http://127.0.0.1:3000/chat', {
+      params: { messages: promptsToSend }
+    })
 
-    // const response = await axios.get('http://127.0.0.1:3000/chat', {
-    //   params: { messages: [...promptsToSend, query] }
-    // })
-    
-    // setQueryResponse(response.data);
-    setQueryResponse(output);
+    setQueryResponse(response.data);
+    // setQueryResponse(output);
   };
 
-  useEffect(()=>{
-    const main = async() => {
-      if((webcontainerInstance === undefined)){
+  useEffect(() => {
+    const main = async () => {
+      if ((webcontainerInstance === undefined)) {
         const container = await WebContainer.boot();
         setContainer(container);
       }
@@ -158,9 +168,9 @@ function App() {
     main();
   }, [])
 
-  useEffect(()=>{
-    const main = async() => {
-      if(webcontainerInstance && contentToTransfer){
+  useEffect(() => {
+    const main = async () => {
+      if (webcontainerInstance && contentToTransfer) {
         await webcontainerInstance.mount(contentToTransfer);
       }
     }
@@ -168,40 +178,40 @@ function App() {
   }, [contentToTransfer])
 
   const handlePreview = async () => {
-    
+
     try {
-      if(webcontainerInstance && !showPreview){
+      if (webcontainerInstance && !showPreview) {
 
-  // Install dependencies
-  const installProcess = await webcontainerInstance.spawn('npm', ['install']);
-  await installProcess.exit;
+        // Install dependencies
+        const installProcess = await webcontainerInstance.spawn('npm', ['install']);
+        await installProcess.exit;
 
-  await webcontainerInstance.spawn('npm', ['install', 'autoprefixer'])
+        await webcontainerInstance.spawn('npm', ['install', 'autoprefixer'])
 
-  // Start development server
-  const devProcess = await webcontainerInstance.spawn('npm', ['run', 'dev']);
-  devProcess.output.pipeTo(new WritableStream({
-    write(data) {
-      console.log(`[Dev Output]: ${data.toString()}`);
-    },
-    abort(err) {
-      console.error(`[Dev Error]: ${new TextDecoder().decode(err)}`);
-    }
-  }));
+        // Start development server
+        const devProcess = await webcontainerInstance.spawn('npm', ['run', 'dev']);
+        devProcess.output.pipeTo(new WritableStream({
+          write(data) {
+            console.log(`[Dev Output]: ${data.toString()}`);
+          },
+          abort(err) {
+            console.error(`[Dev Error]: ${new TextDecoder().decode(err)}`);
+          }
+        }));
 
-  // Handle server ready event
-  webcontainerInstance.on('server-ready', (port, url) => {
-    console.log(`Server is ready on ${url}`);
-    setSource(url);
-  });
-}
-      
-      } catch (error) {
-        console.log(error,'error');
-      } finally{
-        setShowPreview(!showPreview)
+        // Handle server ready event
+        webcontainerInstance.on('server-ready', (port, url) => {
+          console.log(`Server is ready on ${url}`);
+          setSource(url);
+        });
       }
-    
+
+    } catch (error) {
+      console.log(error, 'error');
+    } finally {
+      setShowPreview(!showPreview)
+    }
+
 
   };
 
@@ -215,7 +225,7 @@ function App() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <textarea
-                value = {query}
+                value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full h-32 px-4 py-3 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
                 placeholder="Describe the website you want to build..."
@@ -234,35 +244,43 @@ function App() {
   }
 
   return (
-<>
-    <button onClick={handlePreview}>Switch window</button>
-    <div className="min-h-screen bg-gray-900 text-white flex">
-      <div className="w-1/4 border-r border-gray-700">
-        <StepsList steps={mockSteps} />
-      </div>
-      <div className="w-1/4 border-r border-gray-700">
-        <FileExplorer
-          structure={mockFileStructure}
-          onFileSelect={setSelectedContent}
-        />
+    <div className='relative'>
+      <button
+        onClick={handlePreview}
+        className="flex items-center px-3 py-1 bg-black text-white rounded-xl hover:bg-blue-700 transition-colors absolute right-5 m-1"
+      >
+        {/* <Eye size={16} className="mr-2" /> */}
+        <div className='bg-blue-600 px-3 py-1'>Code</div>
+        <div>Preview</div>
+      </button>
+      <div className="min-h-screen bg-gray-900 text-white flex">
+        <div className="w-1/4 border-r border-gray-700">
+          <StepsList steps={mockSteps} />
+        </div>
+        <div className="w-1/4 border-r border-gray-700">
+          <FileExplorer
+            structure={mockFileStructure}
+            onFileSelect={setSelectedContent}
+          />
+        </div>
+
+        {!showPreview && <div className="w-screen h-screen">
+          <CodeEditor
+            content={selectedContent || 'Select a file to view its contents'}
+          />
+
+        </div>}
+        {showPreview && <div className="w-screen h-screen">
+          <iframe
+            title='preview'
+            width={'100%'}
+            height={'100%'}
+            style={{ backgroundColor: 'white' }}
+            src={source} />
+        </div>}
       </div>
 
-      {!showPreview && <div className="w-1/2">
-        <CodeEditor
-          content={selectedContent || 'Select a file to view its contents'}
-          onPreviewClick={()=>{}}
-        />
-        
-      </div>}
-      {showPreview && <div className="w-1/2">
-      <iframe
-        width={'100%'}
-        height={'100%'}
-        style={{backgroundColor: 'white', border: '1px solid red'}}
-        src={source}/>
-        </div>}
     </div>
-    </>
   );
 }
 
