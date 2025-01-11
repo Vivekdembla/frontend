@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { CheckCircle, Circle, AlertCircle, Loader, Send } from "lucide-react";
 import { Step } from "../types";
 import { Prompts } from "../interfaces/prompts";
-import { Skeleton } from "@mui/material";
+import { CircularProgress, Skeleton } from "@mui/material";
 import axios from "axios";
 
 interface StepsListProps {
@@ -10,6 +10,8 @@ interface StepsListProps {
   prompts: Prompts[];
   setPrompts: (prompts: Prompts[]) => void;
   setQueryResponse: (response: string) => void;
+  loadingForUpdate: boolean;
+  setLoadingForUpdate: (loading: boolean) => void;
 }
 
 const StepIcon = ({ status }: { status: Step["status"] }) => {
@@ -30,6 +32,8 @@ export const StepsList: React.FC<StepsListProps> = ({
   prompts,
   setPrompts,
   setQueryResponse,
+  setLoadingForUpdate,
+  loadingForUpdate,
 }) => {
   const [message, setMessage] = useState<string>("");
   const handleChat = async (e: any) => {
@@ -43,13 +47,18 @@ export const StepsList: React.FC<StepsListProps> = ({
         message,
         role: "user",
       });
+      setMessage("");
+      setLoadingForUpdate(true);
       const response = await axios.post("http://127.0.0.1:3000/chat", {
         messages: promptsToSend,
       });
       setQueryResponse(response.data);
+      promptsToSend.push({ message: response.data, role: "assistant" });
       setPrompts(promptsToSend);
     } catch (error) {
       console.error("Error sending chat message:", error);
+    } finally {
+      setLoadingForUpdate(false);
     }
   };
   return (
@@ -124,13 +133,19 @@ export const StepsList: React.FC<StepsListProps> = ({
                   }}
                   name="message"
                 />
-                <button
-                  type="submit"
-                  className="absolute bottom-4 right-4 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors"
-                  disabled={message.trim() === ""}
-                >
-                  <Send size={20} />
-                </button>
+                {loadingForUpdate ? (
+                  <div className="absolute bottom-4 right-4 bg-blue-600 text-white p-2 px-3 rounded-full hover:bg-blue-700 transition-colors justify-center flex">
+                    <CircularProgress size="20px" color="inherit" />
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="absolute bottom-4 right-4 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors"
+                    disabled={message.trim() === ""}
+                  >
+                    <Send size={20} />
+                  </button>
+                )}
               </div>
             </form>
           </div>

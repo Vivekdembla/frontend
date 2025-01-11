@@ -25,6 +25,8 @@ function App() {
     []
   );
   const [prompts, setPrompts] = useState<Prompts[]>([]);
+  const [loadingForUpdate, setLoadingForUpdate] = useState<boolean>(false);
+  const [techStack, setTechStack] = useState<string>("");
 
   function parseFileStructure(input: string): FileStructure[] {
     // Replace \n in the input string with actual newlines
@@ -145,6 +147,7 @@ function App() {
         prompt: query,
       },
     });
+    setTechStack(res.data.techStack);
     const prompts: string[] = [
       ...res.data.prompts,
       ...res.data.uiPrompts,
@@ -279,6 +282,8 @@ function App() {
             prompts={prompts}
             setPrompts={setPrompts}
             setQueryResponse={setQueryResponse}
+            loadingForUpdate={loadingForUpdate}
+            setLoadingForUpdate={setLoadingForUpdate}
           />
         </div>
         <div className="w-full border-r border-gray-700 ">
@@ -288,6 +293,7 @@ function App() {
             content={selectedContent || "Select a file to view its contents"}
             showPreview={showPreview}
             source={source}
+            loadingForUpdate={loadingForUpdate}
           />
         </div>
       </div>

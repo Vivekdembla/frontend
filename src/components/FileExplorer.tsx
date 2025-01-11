@@ -9,6 +9,7 @@ interface FileExplorerProps {
   content: string;
   showPreview: boolean;
   source: string;
+  loadingForUpdate: boolean;
 }
 
 const FileExplorerItem = ({
@@ -68,6 +69,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   content,
   showPreview,
   source,
+  loadingForUpdate,
 }) => {
   return (
     <div className="flex h-full">
@@ -77,7 +79,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             <h2 className="text-gray-300 font-semibold">File Explorer</h2>
           </div>
           <div className="overflow-auto h-[94vh]">
-            {structure.length === 0
+            {structure.length === 0 || loadingForUpdate
               ? [...Array(25)].map((_, index) => (
                   <div key={index} className="flex items-center py-1 px-2">
                     <Skeleton
@@ -106,7 +108,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
         </div>
         <div className="p-4 overflow-x-scroll h-[94vh]">
           {!showPreview &&
-            (structure.length === 0 ? (
+            (structure.length === 0 || loadingForUpdate ? (
               [...Array(25)].map((_, index) => (
                 <div key={index} className="flex items-center py-1 px-2">
                   <Skeleton
@@ -124,7 +126,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             ))}
 
           {showPreview &&
-            (source === "" ? (
+            (source === "" || loadingForUpdate ? (
               <div className=" w-full h-full">
                 <Skeleton
                   animation="wave"
