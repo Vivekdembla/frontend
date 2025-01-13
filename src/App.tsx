@@ -8,9 +8,10 @@ import axios from "axios";
 import { WebContainer } from "@webcontainer/api";
 import output from "./sample_output";
 import { v4 as uuid } from "uuid";
-import { Eye } from "lucide-react";
+import { Eye, Code2 } from "lucide-react";
 import { Prompts } from "./interfaces/prompts";
 import { DEFAULT_CONTENT } from "./utils/constants";
+import { convertFileStructureToContent, parseFileStructure, renderCode } from "./utils/helper";
 
 function App() {
   const [isBuilding, setIsBuilding] = useState(false);
@@ -32,89 +33,6 @@ function App() {
   const [prompts, setPrompts] = useState<Prompts[]>([]);
   const [loadingForUpdate, setLoadingForUpdate] = useState<boolean>(false);
   const [techStack, setTechStack] = useState<string>("");
-
-  function parseFileStructure(input: string): FileStructure[] {
-    // Replace \n in the input string with actual newlines
-    const normalizedInput = input.replace(/\\n/g, "\n");
-
-    // Regex to match <boltAction type="file" filePath="..."> ... </boltAction>
-    const regex =
-      /<boltAction[^>]+type="file"[^>]*filePath="([^"]+)"[^>]*>([\s\S]*?)<\/boltAction>/g;
-    const filePaths: { path: string; content: string }[] = [];
-
-    let match;
-    while ((match = regex.exec(normalizedInput)) !== null) {
-      const path = match[1]; // File path
-      const content = match[2].trim(); // File content
-      filePaths.push({ path, content });
-    }
-
-    const buildStructure = (
-      paths: { path: string; content: string }[]
-    ): FileStructure[] => {
-      const root: FileStructure[] = [];
-
-      paths.forEach(({ path, content }) => {
-        const parts = path.split("/"); // Split the file path by '/'
-        let currentLevel = root;
-        parts.forEach((part, index) => {
-          let existing = currentLevel.find((item) => item.name === part);
-
-          if (!existing) {
-            if (index === parts.length - 1) {
-              // Create a file
-              existing = {
-                name: part,
-                type: "file",
-                content,
-                path: path,
-              };
-            } else {
-              // Create a folder
-              existing = {
-                name: part,
-                type: "folder",
-                children: [],
-                // path: currentLevel.join("/") + part,
-              };
-            }
-            currentLevel.push(existing);
-          }
-
-          if (existing.type === "folder") {
-            currentLevel = existing.children!;
-          }
-        });
-      });
-
-      return root;
-    };
-
-    return buildStructure(filePaths);
-  }
-
-  const convertFileStructureToContent = (
-    fileStructure: FileStructure[]
-  ): Record<string, any> => {
-    const content: Record<string, any> = {};
-
-    const traverse = (items: FileStructure[]): Record<string, any> => {
-      const result: Record<string, any> = {};
-      items.forEach((item) => {
-        if (item.type === "file" && item.content) {
-          // Add file structure
-          result[item.name] = { file: { contents: item.content } };
-        } else if (item.type === "folder" && item.children) {
-          // Add folder structure
-          result[item.name] = { directory: traverse(item.children) };
-        }
-      });
-      return result;
-    };
-
-    Object.assign(content, traverse(fileStructure));
-    return content;
-  };
 
   const setSteps = () => {
     const steps: Step[] = [];
@@ -146,10 +64,21 @@ function App() {
   useEffect(() => {
     setSteps();
     const fileStructure = parseFileStructure(queryResponse);
-    const res = convertFileStructureToContent(fileStructure);
-    setContentToTransfer(res);
-    setMockFileStructure(fileStructure);
+    // const res = convertFileStructureToContent(fileStructure);
+    // setContentToTransfer(res);
+    setMockFileStructure([...fileStructure]);
   }, [queryResponse]);
+
+  useEffect(() => {
+    if (mockFileStructure.length > 0) {
+      console.log('ghjkl')
+      const res = convertFileStructureToContent(mockFileStructure);
+      setContentToTransfer(res);
+    }
+
+  }, [mockFileStructure]);
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,7 +110,7 @@ function App() {
 
   useEffect(() => {
     const main = async () => {
-      if (webcontainerInstance === undefined) {
+      if (!webcontainerInstance) {
         const container = await WebContainer.boot();
         setContainer(container);
       }
@@ -190,42 +119,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const main = async () => {
-      if (webcontainerInstance && contentToTransfer) {
-        setSource("");
-        await webcontainerInstance.mount(contentToTransfer);
-        // Install dependencies
-        const installProcess = await webcontainerInstance.spawn("npm", [
-          "install",
-        ]);
-        await installProcess.exit;
-
-        await webcontainerInstance.spawn("npm", ["install", "autoprefixer"]);
-
-        // Start development server
-        const devProcess = await webcontainerInstance.spawn("npm", [
-          "run",
-          "dev",
-        ]);
-        devProcess.output.pipeTo(
-          new WritableStream({
-            write(data) {
-              console.log(`[Dev Output]: ${data.toString()}`);
-            },
-            abort(err) {
-              console.error(`[Dev Error]: ${new TextDecoder().decode(err)}`);
-            },
-          })
-        );
-
-        // Handle server ready event
-        webcontainerInstance.on("server-ready", (port, url) => {
-          console.log(`Server is ready on ${url}`);
-          setSource(url);
-        });
-      }
-    };
-    main();
+    renderCode(webcontainerInstance, contentToTransfer, setSource);
   }, [contentToTransfer]);
 
   const handlePreview = async () => {
@@ -271,21 +165,19 @@ function App() {
     <div className="relative">
       <button
         onClick={handlePreview}
-        className="flex items-center px-3 py-1 bg-black text-white rounded-2xl absolute right-5 m-1 text-sm"
+        className="flex items-center px-[3vh] bg-black text-white rounded-2xl absolute right-5 m-[0.5vh] text-sm h-[5vh]"
       >
         <div
-          className={`px-3 py-0.5 rounded-2xl m-0.5 hover:bg-blue-700 transition-colors ${
-            !showPreview ? "bg-blue-600" : ""
-          }`}
+          className={`px-3 mx-0.5 rounded-2xl hover:bg-blue-700 transition-colors ${!showPreview ? "bg-blue-600" : ""
+            }`}
         >
-          Code
+          <Code2 />
         </div>
         <div
-          className={`rounded-2xl m-0.5 px-3 py-0.5 hover:bg-blue-700 transition-colors ${
-            showPreview ? "bg-blue-600" : ""
-          }`}
+          className={`rounded-2xl mx-0.5 px-3 py-0.5 hover:bg-blue-700 transition-colors ${showPreview ? "bg-blue-600" : ""
+            }`}
         >
-          Preview
+          <Eye />
         </div>
       </button>
       <div className="min-h-screen bg-gray-900 text-white flex">
@@ -302,8 +194,9 @@ function App() {
         <div className="w-full border-r border-gray-700 ">
           <FileExplorer
             structure={mockFileStructure}
+            setStructure={setMockFileStructure}
             onFileSelect={setSelectedContent}
-            content={selectedContent}
+            file={selectedContent}
             showPreview={showPreview}
             source={source}
             loadingForUpdate={loadingForUpdate}
