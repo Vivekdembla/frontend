@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Folder, File, ChevronRight, ChevronDown } from "lucide-react";
 import { FileStructure } from "../types";
-import { Skeleton } from "@mui/material";
+import { Button, Skeleton } from "@mui/material";
+import { Editor, useMonaco } from "@monaco-editor/react";
+import { DEFAULT_CONTENT } from "../utils/constants";
 
 interface FileExplorerProps {
   structure: FileStructure[];
-  onFileSelect: (content: string) => void;
-  content: string;
+  onFileSelect: (content: FileStructure) => void;
+  content: FileStructure;
   showPreview: boolean;
   source: string;
   loadingForUpdate: boolean;
@@ -18,10 +20,10 @@ const FileExplorerItem = ({
   depth = 0,
 }: {
   item: FileStructure;
-  onFileSelect: (content: string) => void;
+  onFileSelect: (content: FileStructure) => void;
   depth?: number;
 }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="text-gray-300">
@@ -32,7 +34,7 @@ const FileExplorerItem = ({
           if (item.type === "folder") {
             setIsOpen(!isOpen);
           } else if (item.content) {
-            onFileSelect(item.content);
+            onFileSelect(item);
           }
         }}
       >
@@ -71,6 +73,24 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   source,
   loadingForUpdate,
 }) => {
+  console.log(structure, "structure");
+  const monaco = useMonaco();
+  useEffect(() => {
+    monaco?.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true, // Disables semantic validation
+      noSyntaxValidation: true,
+    });
+    monaco?.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: true,
+    });
+    monaco?.editor.setTheme("vs-dark");
+  }, [monaco]);
+
+  const [unsavedContent, setUnsavedContent] = useState("");
+  useEffect(() => {
+    setUnsavedContent(content.content || "");
+  }, [content]);
   return (
     <div className="flex h-full">
       {!showPreview && (
@@ -120,9 +140,39 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 </div>
               ))
             ) : (
-              <pre className="font-mono text-sm text-gray-300 whitespace-pre-wrap">
-                {content}
-              </pre>
+              <div
+                className="h-full flex flex-col gap-2 bg-[#1e1e1e] pt-2 "
+                // style={{ backgroundColor: "#1e1e1e" }}
+              >
+                {content.content != unsavedContent && (
+                  <div className="w-full flex justify-end pr-1">
+                    <Button size="small" style={{ color: "white" }}>
+                      save
+                    </Button>
+                    <Button
+                      size="small"
+                      style={{ color: "white" }}
+                      onClick={() => setUnsavedContent(content.content || "")}
+                    >
+                      reset
+                    </Button>
+                  </div>
+                )}
+                <div className="h-full z-50">
+                  <Editor
+                    defaultLanguage="typescript"
+                    value={unsavedContent}
+                    onChange={(value) => {
+                      value && setUnsavedContent(value);
+                    }}
+                    options={{
+                      readOnly:
+                        content.content == DEFAULT_CONTENT ? true : false,
+                    }}
+                    theme="vs-code"
+                  />
+                </div>
+              </div>
             ))}
 
           {showPreview &&

@@ -10,12 +10,17 @@ import output from "./sample_output";
 import { v4 as uuid } from "uuid";
 import { Eye } from "lucide-react";
 import { Prompts } from "./interfaces/prompts";
+import { DEFAULT_CONTENT } from "./utils/constants";
 
 function App() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [queryResponse, setQueryResponse] = useState<string>("");
   const [query, setQuery] = useState("");
-  const [selectedContent, setSelectedContent] = useState("");
+  const [selectedContent, setSelectedContent] = useState<FileStructure>({
+    name: "",
+    type: "file",
+    content: DEFAULT_CONTENT,
+  });
   const [contentToTransfer, setContentToTransfer] = useState({});
   const [source, setSource] = useState("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
@@ -52,17 +57,26 @@ function App() {
       paths.forEach(({ path, content }) => {
         const parts = path.split("/"); // Split the file path by '/'
         let currentLevel = root;
-
         parts.forEach((part, index) => {
           let existing = currentLevel.find((item) => item.name === part);
 
           if (!existing) {
             if (index === parts.length - 1) {
               // Create a file
-              existing = { name: part, type: "file", content };
+              existing = {
+                name: part,
+                type: "file",
+                content,
+                path: path,
+              };
             } else {
               // Create a folder
-              existing = { name: part, type: "folder", children: [] };
+              existing = {
+                name: part,
+                type: "folder",
+                children: [],
+                // path: currentLevel.join("/") + part,
+              };
             }
             currentLevel.push(existing);
           }
@@ -133,7 +147,6 @@ function App() {
     setSteps();
     const fileStructure = parseFileStructure(queryResponse);
     const res = convertFileStructureToContent(fileStructure);
-    console.log(res, "structure of data sent to web server");
     setContentToTransfer(res);
     setMockFileStructure(fileStructure);
   }, [queryResponse]);
@@ -142,28 +155,28 @@ function App() {
     e.preventDefault();
     setIsBuilding(true);
 
-    const res = await axios.get("http://127.0.0.1:3000/initial-prompts", {
-      params: {
-        prompt: query,
-      },
-    });
-    setTechStack(res.data.techStack);
-    const prompts: string[] = [
-      ...res.data.prompts,
-      ...res.data.uiPrompts,
-      query,
-    ];
-    const promptsToSend: Prompts[] = prompts.map((prompt) => {
-      return { message: prompt, role: "user" };
-    });
-    const response = await axios.post("http://127.0.0.1:3000/chat", {
-      messages: promptsToSend,
-    });
-    promptsToSend.push({ message: response.data, role: "assistant" });
-    setPrompts(promptsToSend);
+    // const res = await axios.get("http://127.0.0.1:3000/initial-prompts", {
+    //   params: {
+    //     prompt: query,
+    //   },
+    // });
+    // setTechStack(res.data.techStack);
+    // const prompts: string[] = [
+    //   ...res.data.prompts,
+    //   ...res.data.uiPrompts,
+    //   query,
+    // ];
+    // const promptsToSend: Prompts[] = prompts.map((prompt) => {
+    //   return { message: prompt, role: "user" };
+    // });
+    // const response = await axios.post("http://127.0.0.1:3000/chat", {
+    //   messages: promptsToSend,
+    // });
+    // promptsToSend.push({ message: response.data, role: "assistant" });
+    // setPrompts(promptsToSend);
 
-    setQueryResponse(response.data);
-    // setQueryResponse(output);
+    // setQueryResponse(response.data);
+    setQueryResponse(output);
   };
 
   useEffect(() => {
@@ -290,7 +303,7 @@ function App() {
           <FileExplorer
             structure={mockFileStructure}
             onFileSelect={setSelectedContent}
-            content={selectedContent || "Select a file to view its contents"}
+            content={selectedContent}
             showPreview={showPreview}
             source={source}
             loadingForUpdate={loadingForUpdate}

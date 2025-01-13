@@ -12,6 +12,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@monaco-editor/react": "^4.6.0",
     "@mui/material": "^6.3.1",
     "@webcontainer/api": "^1.5.1-internal.5",
     "axios": "^1.7.9",
