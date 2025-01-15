@@ -3,6 +3,7 @@ export interface FileStructure {
   type: 'file' | 'folder';
   children?: FileStructure[];
   content?: string;
+  path?: string;
 }
 
 export interface Step {
