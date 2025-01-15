@@ -1,4 +1,6 @@
 import { FileSystemTree, WebContainer } from "@webcontainer/api";
+import { saveAs } from 'file-saver';
+import JSZip from "jszip";
 import { FileStructure } from "../types";
 
 export const convertFileStructureToContent = (
@@ -123,3 +125,30 @@ export const renderCode = async (webcontainerInstance: WebContainer | undefined,
 
     }
 };
+
+export async function downloadZip(fileStructure: FileStructure[]) {
+    const zip = new JSZip();
+
+    // Get the project name from the description input, or use a default name
+    const projectName = ('project').toLocaleLowerCase().split(' ').join('_');
+
+    // Generate a simple 6-character hash based on the current timestamp
+    const timestampHash = Date.now().toString(36).slice(-6);
+    const uniqueProjectName = `${projectName}_${timestampHash}`;
+    const codebase = await constructStructure(zip, fileStructure);
+    const content = await codebase.generateAsync({ type: 'blob' });
+    saveAs(content, `${uniqueProjectName}.zip`);
+}
+
+async function constructStructure(zip: JSZip, fileStructure: FileStructure[]) {
+    for (const { name, type, content, children } of fileStructure) {
+        if (type === 'file') {
+            zip.file(name, content);
+        } else {
+            const folder = zip.folder(name);
+            if (children && folder) constructStructure(folder, children)
+        }
+    }
+
+    return zip;
+}

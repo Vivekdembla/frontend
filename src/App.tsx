@@ -3,7 +3,7 @@ import { FileExplorer } from "./components/FileExplorer";
 import { StepsList } from "./components/StepsList";
 import { CodeEditor } from "./components/CodeEditor";
 import { FileStructure, Step } from "./types";
-import { Send } from "lucide-react";
+import { Download, Send } from "lucide-react";
 import axios from "axios";
 import { WebContainer } from "@webcontainer/api";
 import output from "./sample_output";
@@ -11,7 +11,8 @@ import { v4 as uuid } from "uuid";
 import { Eye, Code2 } from "lucide-react";
 import { Prompts } from "./interfaces/prompts";
 import { DEFAULT_CONTENT } from "./utils/constants";
-import { convertFileStructureToContent, parseFileStructure, renderCode } from "./utils/helper";
+import { convertFileStructureToContent, downloadZip, parseFileStructure, renderCode } from "./utils/helper";
+import { Button, Card } from "@mui/material";
 
 function App() {
   const [isBuilding, setIsBuilding] = useState(false);
@@ -130,8 +131,8 @@ function App() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-          <h1 className="text-4xl font-bold text-white mb-8 text-center">
-            Website Builder
+          <h1 className="text-4xl font-bold text-white mb-8 text-center font-mono">
+            builder.AI
           </h1>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
@@ -162,47 +163,57 @@ function App() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative bg-gray-900">
+      <div className="h-[6vh] border-b-2 border-gray-700 flex justify-between p-4">
+        <h1 className="self-center text-white text-3xl font-medium font-mono">builder.AI</h1>
+        <Button variant="contained" size="small" className=" self-center h-[4vh]"
+          style={{ color: "white", gap: 10, borderRadius: '1rem', backgroundColor: "#030712", fontWeight: 'bold' }}
+          onClick={() => { downloadZip(mockFileStructure) }}>
+          Download
+          <Download />
+        </Button>
+      </div>
       <button
         onClick={handlePreview}
-        className="flex items-center px-[3vh] bg-black text-white rounded-2xl absolute right-5 m-[0.5vh] text-sm h-[5vh]"
+        className="flex items-center px-[2vh] bg-gray-950 text-white rounded-2xl absolute right-5 m-[2.7vh] text-sm h-[4vh]"
       >
         <div
-          className={`px-3 mx-0.5 rounded-2xl hover:bg-blue-700 transition-colors ${!showPreview ? "bg-blue-600" : ""
-            }`}
+          className={` px-2 mx-0.5 rounded-2xl hover:bg-blue-700 transition-colors ${!showPreview ? "bg-blue-600" : ""}`}
         >
-          <Code2 />
+          <Code2 height="3vh" />
         </div>
         <div
-          className={`rounded-2xl mx-0.5 px-3 py-0.5 hover:bg-blue-700 transition-colors ${showPreview ? "bg-blue-600" : ""
+          className={`rounded-2xl mx-0.5 px-2 py-0.5 hover:bg-blue-700 transition-colors ${showPreview ? "bg-blue-600" : ""
             }`}
         >
-          <Eye />
+          <Eye height="3vh" />
         </div>
       </button>
-      <div className="min-h-screen bg-gray-900 text-white flex">
-        <div className="w-1/2 border-r border-gray-700">
-          <StepsList
-            steps={mockSteps}
-            prompts={prompts}
-            setPrompts={setPrompts}
-            setQueryResponse={setQueryResponse}
-            loadingForUpdate={loadingForUpdate}
-            setLoadingForUpdate={setLoadingForUpdate}
-          />
+      <Card className="m-[2vh] border-gray-400 border-2" sx={{ borderRadius: '1rem', boxShadow: 10 }}>
+        <div className="min-h-screen text-white flex">
+          <div className="w-1/2 border-r border-gray-700">
+            <StepsList
+              steps={mockSteps}
+              prompts={prompts}
+              setPrompts={setPrompts}
+              setQueryResponse={setQueryResponse}
+              loadingForUpdate={loadingForUpdate}
+              setLoadingForUpdate={setLoadingForUpdate}
+            />
+          </div>
+          <div className="w-full border-r border-gray-700 ">
+            <FileExplorer
+              structure={mockFileStructure}
+              setStructure={setMockFileStructure}
+              onFileSelect={setSelectedContent}
+              file={selectedContent}
+              showPreview={showPreview}
+              source={source}
+              loadingForUpdate={loadingForUpdate}
+            />
+          </div>
         </div>
-        <div className="w-full border-r border-gray-700 ">
-          <FileExplorer
-            structure={mockFileStructure}
-            setStructure={setMockFileStructure}
-            onFileSelect={setSelectedContent}
-            file={selectedContent}
-            showPreview={showPreview}
-            source={source}
-            loadingForUpdate={loadingForUpdate}
-          />
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }

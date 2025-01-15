@@ -1,9 +1,11 @@
 import React, { Dispatch, useEffect, useState } from "react";
-import { Folder, File, ChevronRight, ChevronDown } from "lucide-react";
+import { Folder, File, ChevronRight, ChevronDown, Download } from "lucide-react";
+
 import { FileStructure } from "../types";
 import { Button, Skeleton } from "@mui/material";
 import { Editor, useMonaco } from "@monaco-editor/react";
 import { DEFAULT_CONTENT } from "../utils/constants";
+import { downloadZip } from "../utils/helper";
 
 interface FileExplorerProps {
   structure: FileStructure[];
@@ -99,7 +101,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     <div className="flex h-full">
       {!showPreview && (
         <div className="h-full w-1/3 bg-gray-900 border-r border-gray-700 overflow-x-scroll">
-          <div className="p-2 border-b border-gray-700 h-[6vh] flex items-center">
+          <div className="p-2 border-b border-gray-700 h-[5vh] flex items-center">
             <h2 className="text-gray-300 font-semibold">File Explorer</h2>
           </div>
           <div className="overflow-auto h-[94vh]">
@@ -125,7 +127,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
         </div>
       )}
       <div className="h-full bg-gray-900 w-full">
-        <div className="p-2 border-b h-[6vh] border-gray-700 flex justify-between items-center">
+        <div className="p-2 border-b h-[5vh] border-gray-700 flex gap-2 items-center">
           <h2 className="text-gray-300 font-semibold">
             {showPreview ? "Preview" : "Code Editor"}
           </h2>
