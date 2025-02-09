@@ -49,7 +49,7 @@ export const StepsList: React.FC<StepsListProps> = ({
       });
       setMessage("");
       setLoadingForUpdate(true);
-      const response = await axios.post("http://127.0.0.1:3000/chat", {
+      const response = await axios.post(`${process.env.BACKEND_URL}/chat`, {
         messages: promptsToSend,
       });
       setQueryResponse(response.data);
@@ -65,7 +65,7 @@ export const StepsList: React.FC<StepsListProps> = ({
     <div className="h-full bg-gray-900 border-r border-gray-700 flex flex-col justify-between">
       {steps.length == 0 ? (
         <div>
-          <div className="p-2 border-b border-gray-700 h-[6vh] flex items-center">
+          <div className="p-2 border-b border-gray-700 h-[5vh] flex items-center">
             <h2 className="text-gray-300 font-semibold">Build Steps</h2>
           </div>
           <div className="p-4">
@@ -100,7 +100,7 @@ export const StepsList: React.FC<StepsListProps> = ({
       ) : (
         <>
           <div>
-            <div className="p-2 border-b border-gray-700 h-[6vh] flex items-center">
+            <div className="p-2 border-b border-gray-700 h-[5vh] flex items-center">
               <h2 className="text-gray-300 font-semibold">Build Steps</h2>
             </div>
             <div className="p-4">

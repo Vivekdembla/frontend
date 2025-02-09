@@ -1,21 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { FileExplorer } from "./components/FileExplorer";
 import { StepsList } from "./components/StepsList";
-import { CodeEditor } from "./components/CodeEditor";
 import { FileStructure, Step } from "./types";
-import { Send } from "lucide-react";
+import { Download, Send } from "lucide-react";
 import axios from "axios";
 import { WebContainer } from "@webcontainer/api";
-import output from "./sample_output";
 import { v4 as uuid } from "uuid";
-import { Eye } from "lucide-react";
+import { Eye, Code2 } from "lucide-react";
 import { Prompts } from "./interfaces/prompts";
+import { BACKEND_URL, DEFAULT_CONTENT } from "./utils/constants";
+import {
+  convertFileStructureToContent,
+  downloadZip,
+  parseFileStructure,
+  renderCode,
+} from "./utils/helper";
+import { Button, Card } from "@mui/material";
 
 function App() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [queryResponse, setQueryResponse] = useState<string>("");
   const [query, setQuery] = useState("");
-  const [selectedContent, setSelectedContent] = useState("");
+  const [selectedContent, setSelectedContent] = useState<FileStructure>({
+    name: "",
+    type: "file",
+    content: DEFAULT_CONTENT,
+  });
   const [contentToTransfer, setContentToTransfer] = useState({});
   const [source, setSource] = useState("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
@@ -27,80 +37,6 @@ function App() {
   const [prompts, setPrompts] = useState<Prompts[]>([]);
   const [loadingForUpdate, setLoadingForUpdate] = useState<boolean>(false);
   const [techStack, setTechStack] = useState<string>("");
-
-  function parseFileStructure(input: string): FileStructure[] {
-    // Replace \n in the input string with actual newlines
-    const normalizedInput = input.replace(/\\n/g, "\n");
-
-    // Regex to match <boltAction type="file" filePath="..."> ... </boltAction>
-    const regex =
-      /<boltAction[^>]+type="file"[^>]*filePath="([^"]+)"[^>]*>([\s\S]*?)<\/boltAction>/g;
-    const filePaths: { path: string; content: string }[] = [];
-
-    let match;
-    while ((match = regex.exec(normalizedInput)) !== null) {
-      const path = match[1]; // File path
-      const content = match[2].trim(); // File content
-      filePaths.push({ path, content });
-    }
-
-    const buildStructure = (
-      paths: { path: string; content: string }[]
-    ): FileStructure[] => {
-      const root: FileStructure[] = [];
-
-      paths.forEach(({ path, content }) => {
-        const parts = path.split("/"); // Split the file path by '/'
-        let currentLevel = root;
-
-        parts.forEach((part, index) => {
-          let existing = currentLevel.find((item) => item.name === part);
-
-          if (!existing) {
-            if (index === parts.length - 1) {
-              // Create a file
-              existing = { name: part, type: "file", content };
-            } else {
-              // Create a folder
-              existing = { name: part, type: "folder", children: [] };
-            }
-            currentLevel.push(existing);
-          }
-
-          if (existing.type === "folder") {
-            currentLevel = existing.children!;
-          }
-        });
-      });
-
-      return root;
-    };
-
-    return buildStructure(filePaths);
-  }
-
-  const convertFileStructureToContent = (
-    fileStructure: FileStructure[]
-  ): Record<string, any> => {
-    const content: Record<string, any> = {};
-
-    const traverse = (items: FileStructure[]): Record<string, any> => {
-      const result: Record<string, any> = {};
-      items.forEach((item) => {
-        if (item.type === "file" && item.content) {
-          // Add file structure
-          result[item.name] = { file: { contents: item.content } };
-        } else if (item.type === "folder" && item.children) {
-          // Add folder structure
-          result[item.name] = { directory: traverse(item.children) };
-        }
-      });
-      return result;
-    };
-
-    Object.assign(content, traverse(fileStructure));
-    return content;
-  };
 
   const setSteps = () => {
     const steps: Step[] = [];
@@ -132,17 +68,23 @@ function App() {
   useEffect(() => {
     setSteps();
     const fileStructure = parseFileStructure(queryResponse);
-    const res = convertFileStructureToContent(fileStructure);
-    console.log(res, "structure of data sent to web server");
-    setContentToTransfer(res);
-    setMockFileStructure(fileStructure);
+    // const res = convertFileStructureToContent(fileStructure);
+    // setContentToTransfer(res);
+    setMockFileStructure([...fileStructure]);
   }, [queryResponse]);
+
+  useEffect(() => {
+    if (mockFileStructure.length > 0) {
+      const res = convertFileStructureToContent(mockFileStructure);
+      setContentToTransfer(res);
+    }
+  }, [mockFileStructure]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsBuilding(true);
 
-    const res = await axios.get("http://127.0.0.1:3000/initial-prompts", {
+    const res = await axios.get(`${BACKEND_URL}/initial-prompts`, {
       params: {
         prompt: query,
       },
@@ -156,19 +98,18 @@ function App() {
     const promptsToSend: Prompts[] = prompts.map((prompt) => {
       return { message: prompt, role: "user" };
     });
-    const response = await axios.post("http://127.0.0.1:3000/chat", {
+    const response = await axios.post(`${BACKEND_URL}/chat`, {
       messages: promptsToSend,
     });
     promptsToSend.push({ message: response.data, role: "assistant" });
     setPrompts(promptsToSend);
 
     setQueryResponse(response.data);
-    // setQueryResponse(output);
   };
 
   useEffect(() => {
     const main = async () => {
-      if (webcontainerInstance === undefined) {
+      if (!webcontainerInstance) {
         const container = await WebContainer.boot();
         setContainer(container);
       }
@@ -177,42 +118,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const main = async () => {
-      if (webcontainerInstance && contentToTransfer) {
-        setSource("");
-        await webcontainerInstance.mount(contentToTransfer);
-        // Install dependencies
-        const installProcess = await webcontainerInstance.spawn("npm", [
-          "install",
-        ]);
-        await installProcess.exit;
-
-        await webcontainerInstance.spawn("npm", ["install", "autoprefixer"]);
-
-        // Start development server
-        const devProcess = await webcontainerInstance.spawn("npm", [
-          "run",
-          "dev",
-        ]);
-        devProcess.output.pipeTo(
-          new WritableStream({
-            write(data) {
-              console.log(`[Dev Output]: ${data.toString()}`);
-            },
-            abort(err) {
-              console.error(`[Dev Error]: ${new TextDecoder().decode(err)}`);
-            },
-          })
-        );
-
-        // Handle server ready event
-        webcontainerInstance.on("server-ready", (port, url) => {
-          console.log(`Server is ready on ${url}`);
-          setSource(url);
-        });
-      }
-    };
-    main();
+    renderCode(webcontainerInstance, contentToTransfer, setSource);
   }, [contentToTransfer]);
 
   const handlePreview = async () => {
@@ -223,8 +129,8 @@ function App() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-          <h1 className="text-4xl font-bold text-white mb-8 text-center">
-            Website Builder
+          <h1 className="text-4xl font-bold text-white mb-8 text-center font-mono">
+            builder.AI
           </h1>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
@@ -255,48 +161,77 @@ function App() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative bg-gray-900">
+      <div className="h-[6vh] border-b-2 border-gray-700 flex justify-between p-4">
+        <h1 className="self-center text-white text-3xl font-medium font-mono">
+          builder.AI
+        </h1>
+        <Button
+          variant="contained"
+          size="small"
+          className=" self-center h-[4vh]"
+          style={{
+            color: "white",
+            gap: 10,
+            borderRadius: "1rem",
+            backgroundColor: "#030712",
+            fontWeight: "bold",
+          }}
+          onClick={() => {
+            downloadZip(mockFileStructure);
+          }}
+        >
+          Download
+          <Download />
+        </Button>
+      </div>
       <button
         onClick={handlePreview}
-        className="flex items-center px-3 py-1 bg-black text-white rounded-2xl absolute right-5 m-1 text-sm"
+        className="flex items-center px-[2vh] bg-gray-950 text-white rounded-2xl absolute right-5 m-[2.7vh] text-sm h-[4vh]"
       >
         <div
-          className={`px-3 py-0.5 rounded-2xl m-0.5 hover:bg-blue-700 transition-colors ${
+          className={` px-2 mx-0.5 rounded-2xl hover:bg-blue-700 transition-colors ${
             !showPreview ? "bg-blue-600" : ""
           }`}
         >
-          Code
+          <Code2 height="3vh" />
         </div>
         <div
-          className={`rounded-2xl m-0.5 px-3 py-0.5 hover:bg-blue-700 transition-colors ${
+          className={`rounded-2xl mx-0.5 px-2 py-0.5 hover:bg-blue-700 transition-colors ${
             showPreview ? "bg-blue-600" : ""
           }`}
         >
-          Preview
+          <Eye height="3vh" />
         </div>
       </button>
-      <div className="min-h-screen bg-gray-900 text-white flex">
-        <div className="w-1/2 border-r border-gray-700">
-          <StepsList
-            steps={mockSteps}
-            prompts={prompts}
-            setPrompts={setPrompts}
-            setQueryResponse={setQueryResponse}
-            loadingForUpdate={loadingForUpdate}
-            setLoadingForUpdate={setLoadingForUpdate}
-          />
+      <Card
+        className="m-[2vh] border-gray-400 border-2"
+        sx={{ borderRadius: "1rem", boxShadow: 10 }}
+      >
+        <div className="min-h-screen text-white flex">
+          <div className="w-1/2 border-r border-gray-700">
+            <StepsList
+              steps={mockSteps}
+              prompts={prompts}
+              setPrompts={setPrompts}
+              setQueryResponse={setQueryResponse}
+              loadingForUpdate={loadingForUpdate}
+              setLoadingForUpdate={setLoadingForUpdate}
+            />
+          </div>
+          <div className="w-full border-r border-gray-700 ">
+            <FileExplorer
+              structure={mockFileStructure}
+              setStructure={setMockFileStructure}
+              onFileSelect={setSelectedContent}
+              file={selectedContent}
+              showPreview={showPreview}
+              source={source}
+              loadingForUpdate={loadingForUpdate}
+            />
+          </div>
         </div>
-        <div className="w-full border-r border-gray-700 ">
-          <FileExplorer
-            structure={mockFileStructure}
-            onFileSelect={setSelectedContent}
-            content={selectedContent || "Select a file to view its contents"}
-            showPreview={showPreview}
-            source={source}
-            loadingForUpdate={loadingForUpdate}
-          />
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }

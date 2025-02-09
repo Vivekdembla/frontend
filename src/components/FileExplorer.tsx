@@ -1,12 +1,22 @@
-import React from "react";
-import { Folder, File, ChevronRight, ChevronDown } from "lucide-react";
+import React, { Dispatch, useEffect, useState } from "react";
+import {
+  Folder,
+  File,
+  ChevronRight,
+  ChevronDown,
+  Download,
+} from "lucide-react";
+
 import { FileStructure } from "../types";
-import { Skeleton } from "@mui/material";
+import { Button, Skeleton } from "@mui/material";
+import { Editor, useMonaco } from "@monaco-editor/react";
+import { DEFAULT_CONTENT } from "../utils/constants";
 
 interface FileExplorerProps {
   structure: FileStructure[];
-  onFileSelect: (content: string) => void;
-  content: string;
+  setStructure: Dispatch<React.SetStateAction<FileStructure[]>>;
+  onFileSelect: (content: FileStructure) => void;
+  file: FileStructure;
   showPreview: boolean;
   source: string;
   loadingForUpdate: boolean;
@@ -18,10 +28,10 @@ const FileExplorerItem = ({
   depth = 0,
 }: {
   item: FileStructure;
-  onFileSelect: (content: string) => void;
+  onFileSelect: (content: FileStructure) => void;
   depth?: number;
 }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="text-gray-300">
@@ -32,7 +42,7 @@ const FileExplorerItem = ({
           if (item.type === "folder") {
             setIsOpen(!isOpen);
           } else if (item.content) {
-            onFileSelect(item.content);
+            onFileSelect(item);
           }
         }}
       >
@@ -65,17 +75,37 @@ const FileExplorerItem = ({
 
 export const FileExplorer: React.FC<FileExplorerProps> = ({
   structure,
+  setStructure,
   onFileSelect,
-  content,
+  file,
   showPreview,
   source,
   loadingForUpdate,
 }) => {
+  const monaco = useMonaco();
+  useEffect(() => {
+    monaco?.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true, // Disables semantic validation
+      noSyntaxValidation: true,
+    });
+    monaco?.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: true,
+    });
+  }, [monaco]);
+
+  const [unsavedContent, setUnsavedContent] = useState<string>("");
+  useEffect(() => {
+    if (file.content) {
+      setUnsavedContent(file.content);
+    }
+  }, [file.content]);
+
   return (
     <div className="flex h-full">
       {!showPreview && (
         <div className="h-full w-1/3 bg-gray-900 border-r border-gray-700 overflow-x-scroll">
-          <div className="p-2 border-b border-gray-700 h-[6vh] flex items-center">
+          <div className="p-2 border-b border-gray-700 h-[5vh] flex items-center">
             <h2 className="text-gray-300 font-semibold">File Explorer</h2>
           </div>
           <div className="overflow-auto h-[94vh]">
@@ -101,12 +131,12 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
         </div>
       )}
       <div className="h-full bg-gray-900 w-full">
-        <div className="p-2 border-b h-[6vh] border-gray-700 flex justify-between items-center">
+        <div className="p-2 border-b h-[5vh] border-gray-700 flex gap-2 items-center">
           <h2 className="text-gray-300 font-semibold">
             {showPreview ? "Preview" : "Code Editor"}
           </h2>
         </div>
-        <div className="p-4 overflow-x-scroll h-[94vh]">
+        <div className="p-4 h-[94vh]">
           {!showPreview &&
             (structure.length === 0 || loadingForUpdate ? (
               [...Array(25)].map((_, index) => (
@@ -120,9 +150,64 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 </div>
               ))
             ) : (
-              <pre className="font-mono text-sm text-gray-300 whitespace-pre-wrap">
-                {content}
-              </pre>
+              <div className="h-full flex flex-col gap-2 bg-[#1e1e1e] pt-2 ">
+                {file.content?.toString().replace(/\r\n/g, "\n").trim() !==
+                  unsavedContent.replace(/\r\n/g, "\n").trim() && (
+                  <div className="w-full flex justify-end pr-1">
+                    <Button
+                      size="small"
+                      style={{ color: "white" }}
+                      onClick={async () => {
+                        setStructure((structure: FileStructure[]) => {
+                          const newStructure = [...structure];
+
+                          const updateContent = (nodes: FileStructure[]) => {
+                            for (const node of nodes) {
+                              if (node.path === file.path) {
+                                node.content = unsavedContent;
+                                return true;
+                              }
+
+                              if (node.type === "folder" && node.children) {
+                                const updated = updateContent(node.children);
+                                if (updated) return true; // Stop if the target file is found
+                              }
+                            }
+                            return false; // Return false if the file was not found at this level
+                          };
+
+                          updateContent(newStructure);
+                          return [...newStructure];
+                        });
+                      }}
+                    >
+                      save
+                    </Button>
+                    <Button
+                      size="small"
+                      style={{ color: "white" }}
+                      onClick={() => setUnsavedContent(file?.content ?? "")}
+                    >
+                      reset
+                    </Button>
+                  </div>
+                )}
+                <div className="h-full z-50">
+                  <Editor
+                    defaultLanguage="typescript"
+                    value={unsavedContent}
+                    onChange={(value) => {
+                      value && setUnsavedContent(value);
+                    }}
+                    options={{
+                      readOnly: file?.content === DEFAULT_CONTENT,
+                    }}
+                    onMount={(editor, monacoInstance) => {
+                      monacoInstance.editor.setTheme("vs-dark");
+                    }}
+                  />
+                </div>
+              </div>
             ))}
 
           {showPreview &&
