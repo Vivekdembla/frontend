@@ -1,15 +1,20 @@
 import React, { Dispatch, useEffect, useState } from "react";
-import { Folder, File, ChevronRight, ChevronDown, Download } from "lucide-react";
+import {
+  Folder,
+  File,
+  ChevronRight,
+  ChevronDown,
+  Download,
+} from "lucide-react";
 
 import { FileStructure } from "../types";
 import { Button, Skeleton } from "@mui/material";
 import { Editor, useMonaco } from "@monaco-editor/react";
 import { DEFAULT_CONTENT } from "../utils/constants";
-import { downloadZip } from "../utils/helper";
 
 interface FileExplorerProps {
   structure: FileStructure[];
-  setStructure: Dispatch<React.SetStateAction<FileStructure[]>>
+  setStructure: Dispatch<React.SetStateAction<FileStructure[]>>;
   onFileSelect: (content: FileStructure) => void;
   file: FileStructure;
   showPreview: boolean;
@@ -75,7 +80,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   file,
   showPreview,
   source,
-  loadingForUpdate
+  loadingForUpdate,
 }) => {
   const monaco = useMonaco();
   useEffect(() => {
@@ -87,7 +92,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       noSemanticValidation: true,
       noSyntaxValidation: true,
     });
-    // monaco?.editor.setTheme("vs-dark");
   }, [monaco]);
 
   const [unsavedContent, setUnsavedContent] = useState<string>("");
@@ -107,22 +111,22 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           <div className="overflow-auto h-[94vh]">
             {structure.length === 0 || loadingForUpdate
               ? [...Array(25)].map((_, index) => (
-                <div key={index} className="flex items-center py-1 px-2">
-                  <Skeleton
-                    animation="wave"
-                    height={20}
-                    width="60%"
-                    style={{ marginBottom: 6 }}
-                  />
-                </div>
-              ))
+                  <div key={index} className="flex items-center py-1 px-2">
+                    <Skeleton
+                      animation="wave"
+                      height={20}
+                      width="60%"
+                      style={{ marginBottom: 6 }}
+                    />
+                  </div>
+                ))
               : structure.map((item, index) => (
-                <FileExplorerItem
-                  key={index}
-                  item={item}
-                  onFileSelect={onFileSelect}
-                />
-              ))}
+                  <FileExplorerItem
+                    key={index}
+                    item={item}
+                    onFileSelect={onFileSelect}
+                  />
+                ))}
           </div>
         </div>
       )}
@@ -146,51 +150,48 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 </div>
               ))
             ) : (
-              <div
-                className="h-full flex flex-col gap-2 bg-[#1e1e1e] pt-2 "
-              >
-                {(file.content?.toString().replace(/\r\n/g, '\n').trim() !== unsavedContent.replace(/\r\n/g, '\n').trim())
-                  && (
-                    <div className="w-full flex justify-end pr-1">
-                      <Button size="small" style={{ color: "white" }}
-                        onClick={async () => {
-                          setStructure((structure: FileStructure[]) => {
+              <div className="h-full flex flex-col gap-2 bg-[#1e1e1e] pt-2 ">
+                {file.content?.toString().replace(/\r\n/g, "\n").trim() !==
+                  unsavedContent.replace(/\r\n/g, "\n").trim() && (
+                  <div className="w-full flex justify-end pr-1">
+                    <Button
+                      size="small"
+                      style={{ color: "white" }}
+                      onClick={async () => {
+                        setStructure((structure: FileStructure[]) => {
+                          const newStructure = [...structure];
 
-                            const newStructure = [...structure];
-
-                            const updateContent = (nodes: FileStructure[]) => {
-                              for (const node of nodes) {
-
-                                if (node.path === file.path) {
-                                  node.content = unsavedContent;
-                                  return true;
-                                }
-
-                                if (node.type === 'folder' && node.children) {
-                                  const updated = updateContent(node.children);
-                                  if (updated) return true; // Stop if the target file is found
-                                }
+                          const updateContent = (nodes: FileStructure[]) => {
+                            for (const node of nodes) {
+                              if (node.path === file.path) {
+                                node.content = unsavedContent;
+                                return true;
                               }
-                              return false; // Return false if the file was not found at this level
-                            };
 
-                            updateContent(newStructure);
-                            return [...newStructure];
-                          })
-                        }}>
-                        save
-                      </Button>
-                      <Button
-                        size="small"
-                        style={{ color: "white" }}
-                        onClick={() => setUnsavedContent(file?.content ?? "")}
-                      >
-                        reset
-                      </Button>
-                    </div>
+                              if (node.type === "folder" && node.children) {
+                                const updated = updateContent(node.children);
+                                if (updated) return true; // Stop if the target file is found
+                              }
+                            }
+                            return false; // Return false if the file was not found at this level
+                          };
 
-                  )
-                }
+                          updateContent(newStructure);
+                          return [...newStructure];
+                        });
+                      }}
+                    >
+                      save
+                    </Button>
+                    <Button
+                      size="small"
+                      style={{ color: "white" }}
+                      onClick={() => setUnsavedContent(file?.content ?? "")}
+                    >
+                      reset
+                    </Button>
+                  </div>
+                )}
                 <div className="h-full z-50">
                   <Editor
                     defaultLanguage="typescript"

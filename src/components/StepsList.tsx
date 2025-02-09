@@ -49,7 +49,7 @@ export const StepsList: React.FC<StepsListProps> = ({
       });
       setMessage("");
       setLoadingForUpdate(true);
-      const response = await axios.post("http://127.0.0.1:3000/chat", {
+      const response = await axios.post(`${process.env.BACKEND_URL}/chat`, {
         messages: promptsToSend,
       });
       setQueryResponse(response.data);
